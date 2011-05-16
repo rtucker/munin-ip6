@@ -3,18 +3,23 @@
 # Wildcard-plugin to monitor IP addresses through iptables. To monitor an
 # IP, link ip_<ipaddress> to this file. E.g.
 #
-#    ln -s /usr/share/node/node/plugins-auto/ip_ /etc/munin/plugins/ip_192.168.0.1
+#    ln -s /usr/share/node/node/plugins-auto/ip6_ /etc/munin/plugins/ip6_2001_db8_85a3__8a2e_370_7334
 #
-# ...will monitor the IP 192.168.0.1.
+# ...will monitor the IP 2001:db8:85a3::8a2e:370:7334.
 #
-# Aditionally, you need these iptables rules as the first rules (they don't do anything, just make packet counts)
+# Note that the rules of RFC 5952 apply here: namely, shorten as much
+# as possible.
 #
-#    iptables -A INPUT -d 192.168.0.1
-#    iptables -A OUTPUT -s 192.168.0.1
+# Additionally, you need these iptables rules as the first rules (they don't do anything, just make packet counts)
+#
+#    ip6tables -A INPUT -d 2001:db8:85a3::8a2e:370:7334
+#    ip6tables -A OUTPUT -s 2001:db8:85a3::8a2e:370:7334
 #
 # Furthermore, this plugin needs to be run as root for iptables to work
 #
-# This plugin is based on the if_ plugin.
+# This plugin is based on the ip_ plugin, which was, in turn, based
+# on the if_ plugin.
+# Hacked together by Ryan Tucker <rtucker@gmail.com>, 2011/05/14
 #
 #$Log$
 #Revision 1.7  2004/12/10 10:47:49  jimmyo
@@ -46,13 +51,13 @@
 #%# capabilities=autoconf suggest
 
 
-IP=`basename $0 | sed 's/^ip_//g'`
+IP=`basename $0 | sed 's/^ip6_//g' | sed 's/_/:/g'`
 
 if [ "$1" = "autoconf" ]; then
 	if [ -r /proc/net/dev ]; then
-		iptables -L INPUT -v -n -x >/dev/null 2>/dev/null
+		ip6tables -L INPUT -v -n -x >/dev/null 2>/dev/null
 		if [ $? -gt 0 ]; then
-			echo "no (could not run iptables as user `whoami`)"
+			echo "no (could not run ip6tables as user `whoami`)"
 			exit 1
 		else
 			echo yes
@@ -65,7 +70,7 @@ if [ "$1" = "autoconf" ]; then
 fi
 
 if [ "$1" = "suggest" ]; then
-	iptables -L INPUT -v -n -x 2>/dev/null | awk '$8 ~ /[0-9]/ { if (done[$8]!=1) {print $8; done[$8]=1;}}'
+	ip6tables -L INPUT -v -n -x 2>/dev/null | awk '$8 ~ /[0-9]/ { if (done[$8]!=1) {print $8; done[$8]=1;}}'
 	exit 0
 fi
 
@@ -87,6 +92,6 @@ if [ "$1" = "config" ]; then
         exit 0
 fi;
 
-iptables -L INPUT -v -n -x | grep -m1 $IP | awk "{ print \"in.value \" \$2 }"
-iptables -L OUTPUT -v -n -x | grep -m1 $IP | awk "{ print \"out.value \" \$2 }"
+ip6tables -L INPUT -v -n -x | grep -m1 $IP | awk "{ print \"in.value \" \$2 }"
+ip6tables -L OUTPUT -v -n -x | grep -m1 $IP | awk "{ print \"out.value \" \$2 }"
 
